@@ -45,7 +45,7 @@ classes = ['healthy', 'junk']
 #    size=224,
 #)
 data = ImageDataBunch.single_from_classes(path, classes, tfms=get_transforms(), size=224).normalize(imagenet_stats)
-learner = create_cnn(data, models.resnet34)
+learner = create_cnn(data, models.resnet50)
 learner.model.load_state_dict(
     torch.load("model-weights.pth", map_location="cpu")
 )
@@ -84,8 +84,9 @@ def form(request):
         <form action="/upload" method="post" enctype="multipart/form-data">
             Select image to upload:
             <input type="file" name="file">
-            <input type="submit" value="Analyze Image">
+            <input type="submit" value="Upload and analyze image">
         </form>
+        <br>
         Or submit a URL:
         <form action="/classify-url" method="get">
             <input type="url" name="url">
