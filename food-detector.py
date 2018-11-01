@@ -1,12 +1,15 @@
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, HTMLResponse, RedirectResponse
-from fastai.vision import (
-    ImageDataBunch,
-    ConvLearner,
-    open_image,
-    get_transforms,
-    models,
-)
+#from fastai.vision import (
+#    ImageDataBunch,
+#    create_cnn,
+#    open_image,
+#    get_transforms,
+#    models,
+#)
+from fastai import *
+from fastai.vision import *
+
 import torch
 from pathlib import Path
 from io import BytesIO
@@ -14,6 +17,7 @@ import sys
 import uvicorn
 import aiohttp
 import asyncio
+import os
 
 
 async def get_bytes(url):
@@ -24,32 +28,26 @@ async def get_bytes(url):
 
 app = Starlette()
 
-cat_images_path = Path("/tmp")
-cat_fnames = [
+path = Path("/tmp")
+fnames = [
     "/{}_1.jpg".format(c)
     for c in [
-        "Bobcat",
-        "Mountain-Lion",
-        "Domestic-Cat",
-        "Western-Bobcat",
-        "Canada-Lynx",
-        "North-American-Mountain-Lion",
-        "Eastern-Bobcat",
-        "Central-American-Ocelot",
-        "Ocelot",
-        "Jaguar",
+        "healthy",
+        "junk",
     ]
 ]
-cat_data = ImageDataBunch.from_name_re(
-    cat_images_path,
-    cat_fnames,
-    r"/([^/]+)_\d+.jpg$",
-    ds_tfms=get_transforms(),
-    size=224,
-)
-cat_learner = ConvLearner(cat_data, models.resnet34)
-cat_learner.model.load_state_dict(
-    torch.load("usa-inaturalist-cats.pth", map_location="cpu")
+classes = ['healthy', 'junk']
+#data = ImageDataBunch.from_name_re(
+#    images_path,
+#    fnames,
+#    r"/([^/]+)_\d+.jpg$",
+#    ds_tfms=get_transforms(),
+#    size=224,
+#)
+data = ImageDataBunch.single_from_classes(path, classes, tfms=get_transforms(), size=224).normalize(imagenet_stats)
+learner = create_cnn(data, models.resnet34)
+learner.model.load_state_dict(
+    torch.load("model-weights.pth", map_location="cpu")
 )
 
 
@@ -68,10 +66,11 @@ async def classify_url(request):
 
 def predict_image_from_bytes(bytes):
     img = open_image(BytesIO(bytes))
-    losses = img.predict(cat_learner)
+    #losses = learner.predict(img)
+    pred_class,pred_idx,outputs = learner.predict(img)
     return JSONResponse({
         "predictions": sorted(
-            zip(cat_learner.data.classes, map(float, losses)),
+            zip(learner.data.classes, map(float, outputs)),
             key=lambda p: p[1],
             reverse=True
         )
@@ -85,7 +84,7 @@ def form(request):
         <form action="/upload" method="post" enctype="multipart/form-data">
             Select image to upload:
             <input type="file" name="file">
-            <input type="submit" value="Upload Image">
+            <input type="submit" value="Analyze Image">
         </form>
         Or submit a URL:
         <form action="/classify-url" method="get">
@@ -102,4 +101,5 @@ def redirect_to_homepage(request):
 
 if __name__ == "__main__":
     if "serve" in sys.argv:
-        uvicorn.run(app, host="0.0.0.0", port=8008)
+        port = int(os.environ.get("PORT", 8008)) 
+        uvicorn.run(app, host="0.0.0.0", port=port)
