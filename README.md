@@ -1,1 +1,1 @@
-# healthyornot
+# healthy-or-not
