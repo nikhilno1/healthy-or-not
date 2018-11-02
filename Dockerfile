@@ -10,8 +10,9 @@ RUN pip install fastai
 # Install starlette and uvicorn
 RUN pip install starlette uvicorn python-multipart aiohttp
 
-ADD food-detector.py food-detector.py
 ADD model-weights.pth model-weights.pth
+
+ADD food-detector.py food-detector.py
 
 # Run it once to trigger resnet download
 RUN python food-detector.py

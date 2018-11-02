@@ -18,6 +18,8 @@ import uvicorn
 import aiohttp
 import asyncio
 import os
+import json
+import requests
 
 
 async def get_bytes(url):
@@ -55,15 +57,16 @@ learner.model.load_state_dict(
 async def upload(request):
     data = await request.form()
     bytes = await (data["file"].read())
-    json_output = predict_image_from_bytes(bytes)
-    return HTMLResponse(
-        """
-        <html>
-           <body>
-             <p>%s</p>
-           </body>
-        </html>
-    """ %("nikhil"))
+    return predict_image_from_bytes(bytes)
+    #json_data = json_output.body
+    #return HTMLResponse(
+    #    """
+    #    <html>
+    #       <body>
+    #         <p>Output: %s</p>
+    #       </body>
+    #    </html>
+    #""" %(json_data))
 
 
 @app.route("/classify-url", methods=["GET"])
@@ -76,13 +79,27 @@ def predict_image_from_bytes(bytes):
     img = open_image(BytesIO(bytes))
     #losses = learner.predict(img)
     pred_class,pred_idx,outputs = learner.predict(img)
-    return JSONResponse({
-        "predictions": sorted(
+    pred_probs = sorted(
             zip(learner.data.classes, map(float, outputs)),
             key=lambda p: p[1],
             reverse=True
         )
-    })
+    return HTMLResponse(
+        """
+        <html>
+           <body>
+             <p>Prediction: <b>%s</b></p>
+             <p>Scores: %s</p>
+           </body>
+        </html>
+    """ %(pred_class.upper(), pred_probs))
+    #return JSONResponse({
+    #    "predictions": sorted(
+    #        zip(learner.data.classes, map(float, outputs)),
+    #        key=lambda p: p[1],
+    #        reverse=True
+    #    )
+    #})
 
 
 @app.route("/")
