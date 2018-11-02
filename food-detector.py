@@ -29,13 +29,13 @@ async def get_bytes(url):
 app = Starlette()
 
 path = Path("/tmp")
-fnames = [
-    "/{}_1.jpg".format(c)
-    for c in [
-        "healthy",
-        "junk",
-    ]
-]
+#fnames = [
+#    "/{}_1.jpg".format(c)
+#    for c in [
+#        "healthy",
+#        "junk",
+#    ]
+#]
 classes = ['healthy', 'junk']
 #data = ImageDataBunch.from_name_re(
 #    images_path,
@@ -55,7 +55,15 @@ learner.model.load_state_dict(
 async def upload(request):
     data = await request.form()
     bytes = await (data["file"].read())
-    return predict_image_from_bytes(bytes)
+    json_output = predict_image_from_bytes(bytes)
+    return HTMLResponse(
+        """
+        <html>
+           <body>
+             <p>%s</p>
+           </body>
+        </html>
+    """ %("nikhil"))
 
 
 @app.route("/classify-url", methods=["GET"])
@@ -81,16 +89,19 @@ def predict_image_from_bytes(bytes):
 def form(request):
     return HTMLResponse(
         """
+        <h1>Healthy Or Not !</h1>
+        <p>Find out if the food is healthy or not. Upload image or specify URL.</p><br>
         <form action="/upload" method="post" enctype="multipart/form-data">
-            Select image to upload:
-            <input type="file" name="file">
-            <input type="submit" value="Upload and analyze image">
+            <u>Select image to upload:</u><br><p>
+            1. <input type="file" name="file"><br><p>
+            2. <input type="submit" value="Upload and analyze image">
         </form>
         <br>
-        Or submit a URL:
+        <strong>OR</strong><br><p>
+        <u>Submit a URL:</u>
         <form action="/classify-url" method="get">
-            <input type="url" name="url">
-            <input type="submit" value="Fetch and analyze image">
+            1. <input type="url" name="url" size="60"><br><p>
+            2. <input type="submit" value="Fetch and analyze image">
         </form>
     """)
 
