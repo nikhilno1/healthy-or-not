@@ -79,8 +79,9 @@ def predict_image_from_bytes(bytes):
     img = open_image(BytesIO(bytes))
     #losses = learner.predict(img)
     pred_class,pred_idx,outputs = learner.predict(img)
+    formatted_outputs = ["{:.1f}%".format(value) for value in [x * 100 for x in torch.nn.functional.softmax(outputs, dim=0)]]
     pred_probs = sorted(
-            zip(learner.data.classes, map(float, outputs)),
+            zip(learner.data.classes, map(str, formatted_outputs)),
             key=lambda p: p[1],
             reverse=True
         )
@@ -89,7 +90,7 @@ def predict_image_from_bytes(bytes):
         <html>
            <body>
              <p>Prediction: <b>%s</b></p>
-             <p>Scores: %s</p>
+             <p>Confidence: %s</p>
            </body>
         </html>
     """ %(pred_class.upper(), pred_probs))
