@@ -20,32 +20,25 @@ import asyncio
 import os
 import json
 import requests
+import base64 
+from PIL import Image as PILImage
 
 
 async def get_bytes(url):
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
             return await response.read()
-
+def encode(img):
+    img = (image2np(img.data) * 255).astype('uint8')
+    pil_img = PILImage.fromarray(img)
+    buff = BytesIO()
+    pil_img.save(buff, format="JPEG")
+    return base64.b64encode(buff.getvalue()).decode("utf-8")
 
 app = Starlette()
 
 path = Path("/tmp")
-#fnames = [
-#    "/{}_1.jpg".format(c)
-#    for c in [
-#        "healthy",
-#        "junk",
-#    ]
-#]
 classes = ['healthy', 'junk']
-#data = ImageDataBunch.from_name_re(
-#    images_path,
-#    fnames,
-#    r"/([^/]+)_\d+.jpg$",
-#    ds_tfms=get_transforms(),
-#    size=224,
-#)
 data = ImageDataBunch.single_from_classes(path, classes, tfms=get_transforms(), size=224).normalize(imagenet_stats)
 learner = create_cnn(data, models.resnet50)
 learner.model.load_state_dict(
@@ -58,16 +51,6 @@ async def upload(request):
     data = await request.form()
     bytes = await (data["file"].read())
     return predict_image_from_bytes(bytes)
-    #json_data = json_output.body
-    #return HTMLResponse(
-    #    """
-    #    <html>
-    #       <body>
-    #         <p>Output: %s</p>
-    #       </body>
-    #    </html>
-    #""" %(json_data))
-
 
 @app.route("/classify-url", methods=["GET"])
 async def classify_url(request):
@@ -77,7 +60,6 @@ async def classify_url(request):
 
 def predict_image_from_bytes(bytes):
     img = open_image(BytesIO(bytes))
-    #losses = learner.predict(img)
     pred_class,pred_idx,outputs = learner.predict(img)
     formatted_outputs = ["{:.1f}%".format(value) for value in [x * 100 for x in torch.nn.functional.softmax(outputs, dim=0)]]
     pred_probs = sorted(
@@ -85,6 +67,7 @@ def predict_image_from_bytes(bytes):
             key=lambda p: p[1],
             reverse=True
         )
+    img_data = encode(img)
     return HTMLResponse(
         """
         <html>
@@ -92,16 +75,11 @@ def predict_image_from_bytes(bytes):
              <p>Prediction: <b>%s</b></p>
              <p>Confidence: %s</p>
            </body>
+        <figure class="figure">
+          <img src="data:image/png;base64, %s" class="figure-img img-thumbnail input-image">
+        </figure>
         </html>
-    """ %(pred_class.upper(), pred_probs))
-    #return JSONResponse({
-    #    "predictions": sorted(
-    #        zip(learner.data.classes, map(float, outputs)),
-    #        key=lambda p: p[1],
-    #        reverse=True
-    #    )
-    #})
-
+    """ %(pred_class.upper(), pred_probs, img_data))
 
 @app.route("/")
 def form(request):
